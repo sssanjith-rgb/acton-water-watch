@@ -209,6 +209,27 @@
       .map-stage svg .scale-alt { fill: var(--ink); }
       .map-stage svg .scale-txt { fill: var(--ink-2); font: 600 14px "IBM Plex Mono", monospace; }
       .map-stage svg .north-txt { fill: var(--ink); font: 700 17px "IBM Plex Sans", sans-serif; }
+      /* ---------- Zoom-tiered labels ----------
+         At the full overview only the big orientation labels show (ACTON,
+         the five area names, neighbouring towns). Detail labels stay
+         hidden until the reader zooms in: main road & water names and the
+         route shields fade in at mid zoom (.zl-mid, set by JS), and the
+         small street / brook / place labels only at deep zoom (.zl-high). */
+      .map-stage svg .road-label, .map-stage svg .water-label, .map-stage svg .shield,
+      .map-stage svg .road-label-sm, .map-stage svg .water-label-sm,
+      .map-stage svg .poi-label, .map-stage svg .area-sub { transition: opacity .3s ease; }
+      #mapSvg:not(.zl-mid):not(.zl-high) .road-label,
+      #mapSvg:not(.zl-mid):not(.zl-high) .water-label,
+      #mapSvg:not(.zl-mid):not(.zl-high) .shield,
+      #mapSvg:not(.zl-high) .road-label-sm,
+      #mapSvg:not(.zl-high) .water-label-sm,
+      #mapSvg:not(.zl-high) .poi-label,
+      #mapSvg:not(.zl-high) .area-sub { opacity: 0; pointer-events: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .map-stage svg .road-label, .map-stage svg .water-label, .map-stage svg .shield,
+        .map-stage svg .road-label-sm, .map-stage svg .water-label-sm,
+        .map-stage svg .poi-label, .map-stage svg .area-sub { transition: none; }
+      }
       @media (prefers-color-scheme: dark) {
         .map-stage svg .land { fill: #1b241f; }
         .map-stage svg .park { fill: #273a29; }
@@ -504,7 +525,8 @@
         <p class="sec-sub">
           The map below is a large, detailed street map of Acton, MA, drawn in the style of Google Maps right into this page — it
           loads with the page itself, no external map service needed, so it works the same hosted anywhere as a plain static page. The view reaches a little past Acton's borders — Littleton, Westford, Carlisle, Concord, Maynard, Stow and Boxborough show faintly around the edges, with just their names and the main roads running into them, while all the detail stays inside Acton. Use the + / − buttons, your
-          scroll wheel, or a pinch to zoom, and drag to pan. Each numbered pin is plotted from its
+          scroll wheel, or a pinch to zoom, and drag to pan. The overview stays uncluttered — just the
+          area names and the pins; street, pond and place labels fade in as you zoom closer. Each numbered pin is plotted from its
           drain's coordinates and coloured by its dirty score. Click a pin, a numbered button under
           the map, a site in the list, or a row in the summary table and the map zooms in on that
           drain while its full card opens below: coordinates, location, photo, estimated copper,
@@ -791,7 +813,7 @@
                 <button type="button" class="zbtn zreset" id="zoomResetBtn" aria-label="Reset map view">Reset</button>
               </div>
               <span class="zoom-readout" id="zoomReadout" aria-live="polite">Zoom 1.0× · drag to pan · scroll to zoom</span>
-              <span class="map-hint-bar">Drag to pan · Scroll / pinch to zoom · Click a pin to zoom in</span>
+              <span class="map-hint-bar">Drag to pan · Scroll / pinch to zoom · Labels appear as you zoom in</span>
             </div>
             <div class="map-caption">
               <span id="mapCaption"><strong>Overview</strong> · Acton, MA · 42.48736, -71.43134</span>
@@ -1200,6 +1222,7 @@
            pins can never drift off their coordinates at any zoom level.
            Pins counter-scale so they keep a constant on-screen size. */
         var mapStage = document.getElementById("mapStage");
+        var mapSvg = document.getElementById("mapSvg");
         var worldG = document.getElementById("worldG");
         var zoomReadout = document.getElementById("zoomReadout");
         var VB_W = 1470, VB_H = 1139, KM_UNITS = 85.3;
@@ -1251,6 +1274,13 @@
             g.setAttribute("transform", "translate(" + g.getAttribute("data-x") + "," + g.getAttribute("data-y") + ") scale(" + k + ")");
           });
           if (zoomReadout) zoomReadout.textContent = "Zoom " + view.scale.toFixed(1) + "× · drag to pan · scroll to zoom";
+          /* Label detail follows zoom: overview shows only the big area
+             names, mid zoom adds main roads & water, deep zoom adds the
+             small street, brook and place labels. */
+          if (mapSvg) {
+            mapSvg.classList.toggle("zl-mid", view.scale >= 1.6 && view.scale < 3);
+            mapSvg.classList.toggle("zl-high", view.scale >= 3);
+          }
           updateScaleBar();
         }
         /* The stage is a different shape from the viewBox, so the SVG
